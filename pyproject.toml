@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "h-orbital"
+version = "1.0.0"
+description = "Analytic hydrogen orbital slice visualizer"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "matplotlib>=3.7",
+]
+
+[project.scripts]
+H-orbital = "h_orbital.cli:main"
+H-orbital-ui = "h_orbital.gui:main"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.4",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["h_orbital*"]
