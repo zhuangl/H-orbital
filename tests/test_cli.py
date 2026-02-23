@@ -2,7 +2,7 @@
 
 from h_orbital.auto_settings import auto_extent_a0, auto_plane_and_value
 from h_orbital.cli import _build_parser, _default_output_name
-from h_orbital.plotting import resolve_scale
+from h_orbital.plotting import resolve_colormap, resolve_scale
 
 
 def test_default_output_name_contains_identifiers() -> None:
@@ -45,6 +45,12 @@ def test_auto_scale_resolution_matches_mode() -> None:
     assert resolve_scale(mode="real", scale="auto") == "symlog"
 
 
+def test_density_keeps_selected_colormap_name() -> None:
+    """Density mode keeps user-selected colormap name before positive-half mapping."""
+    assert resolve_colormap(mode="density", cmap=None) == "RdYlBu_r"
+    assert resolve_colormap(mode="density", cmap="RdYlBu_r") == "RdYlBu_r"
+
+
 def test_cli_defaults_keep_real_mode_and_linear_scale() -> None:
     """User-facing defaults should stay readable without strong compression."""
     parser = _build_parser()
@@ -52,6 +58,7 @@ def test_cli_defaults_keep_real_mode_and_linear_scale() -> None:
     assert args.mode == "real"
     assert args.scale == "linear"
     assert args.colorbar is False
+    assert args.line_mode is False
 
 
 def test_cli_can_disable_colorbar() -> None:
@@ -66,6 +73,13 @@ def test_cli_can_enable_colorbar() -> None:
     parser = _build_parser()
     args = parser.parse_args(["2", "--colorbar"])
     assert args.colorbar is True
+
+
+def test_cli_can_enable_line_mode() -> None:
+    """CLI should allow enabling contour-only line mode."""
+    parser = _build_parser()
+    args = parser.parse_args(["2", "--line-mode"])
+    assert args.line_mode is True
 
 
 def test_parser_accepts_new_modes() -> None:

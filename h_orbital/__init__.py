@@ -11,6 +11,6 @@ and utilities to render 2D planar slices from command-line inputs.
 from .analytic import hydrogen_wavefunction
 from .quantum_numbers import QuantumNumbers, parse_quantum_numbers
 
-__version__ = "1.0.0"
+__version__ = "1.5.0"
 
 __all__ = ["QuantumNumbers", "parse_quantum_numbers", "hydrogen_wavefunction", "__version__"]

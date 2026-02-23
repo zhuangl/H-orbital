@@ -33,7 +33,12 @@ No numerical Schrodinger solver is used.
   - `--plane x --value c` (plane `x=c`)
   - `--plane y --value c` (plane `y=c`)
   - `--plane z --value c` (plane `z=c`)
-- Select colormap (`--cmap`) with default close to the sample image style
+- Select colormap (`--cmap`), default is `RdYlBu_r`
+- Optional contour-only line rendering via `--line-mode`
+  - signed fields: positive solid lines and negative dashed lines
+  - line colors come from the selected colormap's positive/negative ends
+  - density fields: solid contour lines only (no filled surface)
+- Density mode uses the positive-value half of the selected colormap, so zero stays near blank and higher values become progressively darker.
 - Colorbar toggle: `--colorbar` / `--no-colorbar` (default: off)
 
 ## Install Dependencies
@@ -66,7 +71,10 @@ GUI layout:
 
 - Top panel: common parameters (`n`, `l`, `m`, `mode`, `plane`, `value`) and `Plot`
 - Top panel: includes a `Colorbar` toggle switch
-- `Advanced` dialog: finer controls (`points`, `colormap`, `scale`)
+- `Advanced` dialog: finer controls (`points`, `colormap`, `scale`, `Draw nodal lines`)
+  with common colormap options and custom Matplotlib names
+  - `Line mode (contours only)` toggle is available below colormap
+  - in `density` mode, `symlog` is disabled
 - Middle area: interactive Matplotlib plot canvas
 - Bottom slider: range control in units of `a0`
 - Export buttons: save current figure as PNG or SVG
@@ -90,7 +98,10 @@ Examples:
 ./H-orbital 3 2 1 --mode density --plane y --value 0.5 --scale log
 
 # Two-panel real and imaginary parts
-./H-orbital 3 2 2 --mode real_imag --plane z --value 0 --cmap sample --scale symlog
+./H-orbital 3 2 2 --mode real_imag --plane z --value 0 --cmap RdYlBu_r --scale symlog
+
+# Contour-only line mode with colormap endpoint colors
+./H-orbital 4 2 0 --mode real --line-mode --cmap coolwarm
 
 # Radial distribution (independent of plane/value)
 ./H-orbital 3 0 0 --mode radial_distribution
@@ -139,7 +150,7 @@ pytest tests/test_quantum_numbers.py::test_parse_single_value_defaults_l_and_m
 
 ## Version
 
-Current stable version: `1.0.0`.
+Current stable version: `1.5.0`.
 
 ## License
 

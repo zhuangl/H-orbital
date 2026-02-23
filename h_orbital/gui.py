@@ -17,26 +17,30 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
 import numpy as np
+from matplotlib import cm
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.colors import LogNorm, SymLogNorm
+from matplotlib.colors import LogNorm, Normalize, SymLogNorm, TwoSlopeNorm
 from matplotlib.figure import Figure
 
 from .analytic import hydrogen_wavefunction, radial_wavefunction, spherical_harmonic
 from .auto_settings import auto_plane_and_value
 from .constants import BOHR_RADIUS
 from .modes import evaluate_mode
-from .plotting import resolve_colormap, resolve_scale
+from .plotting import resolve_colormap, resolve_density_cmap, resolve_scale
 from .quantum_numbers import parse_quantum_numbers
 from .slicing import build_plane_grid, cartesian_to_spherical
 
 
 COLORMAP_CHOICES = (
-    "",
-    "sample",
-    "sample_density",
     "RdYlBu_r",
-    "YlOrRd",
+    "RdBu_r",
     "coolwarm",
+    "seismic",
+    "bwr",
+    "Spectral_r",
+    "PiYG",
+    "PRGn",
+    "BrBG",
     "viridis",
     "plasma",
     "magma",
@@ -50,14 +54,16 @@ class AdvancedSettings:
     """Container for advanced plotting parameters."""
 
     points: int = 401
-    cmap: str = ""
+    cmap: str = "RdYlBu_r"
     scale: str = "linear"
+    show_nodal: bool = True
+    line_mode: bool = False
 
 
 class AdvancedDialog(tk.Toplevel):
     """Modal dialog for editing advanced plotting options."""
 
-    def __init__(self, master: tk.Tk, settings: AdvancedSettings) -> None:
+    def __init__(self, master: tk.Tk, settings: AdvancedSettings, mode: str) -> None:
         super().__init__(master)
         self.title("Advanced Settings")
         self.resizable(False, False)
@@ -69,6 +75,8 @@ class AdvancedDialog(tk.Toplevel):
         self.points_var = tk.StringVar(value=str(settings.points))
         self.cmap_var = tk.StringVar(value=settings.cmap)
         self.scale_var = tk.StringVar(value=settings.scale)
+        self.show_nodal_var = tk.BooleanVar(value=settings.show_nodal)
+        self.line_mode_var = tk.BooleanVar(value=settings.line_mode)
 
         form = ttk.Frame(self, padding=12)
         form.grid(row=0, column=0, sticky="nsew")
@@ -85,17 +93,34 @@ class AdvancedDialog(tk.Toplevel):
             state="normal",
         ).grid(row=1, column=1, sticky="w", pady=4)
 
-        ttk.Label(form, text="Scale").grid(row=2, column=0, sticky="w", pady=4)
+        ttk.Checkbutton(form, text="Line mode (contours only)", variable=self.line_mode_var).grid(
+            row=2,
+            column=0,
+            columnspan=2,
+            sticky="w",
+            pady=4,
+        )
+
+        ttk.Label(form, text="Scale").grid(row=3, column=0, sticky="w", pady=4)
+        scale_values = ("linear", "auto", "log") if mode == "density" else ("linear", "auto", "log", "symlog")
+        if mode == "density" and self.scale_var.get() == "symlog":
+            self.scale_var.set("linear")
+
         ttk.Combobox(
             form,
-            values=("linear", "auto", "log", "symlog"),
+            values=scale_values,
             textvariable=self.scale_var,
             width=13,
             state="readonly",
-        ).grid(row=2, column=1, sticky="w", pady=4)
+        ).grid(row=3, column=1, sticky="w", pady=4)
+
+        nodal_check = ttk.Checkbutton(form, text="Draw nodal lines", variable=self.show_nodal_var)
+        nodal_check.grid(row=4, column=0, columnspan=2, sticky="w", pady=4)
+        if mode == "density":
+            nodal_check.state(["disabled"])
 
         button_row = ttk.Frame(form)
-        button_row.grid(row=3, column=0, columnspan=2, sticky="e", pady=(10, 0))
+        button_row.grid(row=5, column=0, columnspan=2, sticky="e", pady=(10, 0))
         ttk.Button(button_row, text="Cancel", command=self.destroy).grid(row=0, column=0, padx=4)
         ttk.Button(button_row, text="Apply", command=self._apply).grid(row=0, column=1, padx=4)
 
@@ -118,6 +143,8 @@ class AdvancedDialog(tk.Toplevel):
             points=points,
             cmap=self.cmap_var.get().strip(),
             scale=self.scale_var.get().strip() or "linear",
+            show_nodal=bool(self.show_nodal_var.get()),
+            line_mode=bool(self.line_mode_var.get()),
         )
         self.destroy()
 
@@ -236,7 +263,7 @@ class OrbitalApp:
 
     def _open_advanced(self) -> None:
         """Open the advanced settings dialog and apply changes if confirmed."""
-        dialog = AdvancedDialog(self.root, self.settings)
+        dialog = AdvancedDialog(self.root, self.settings, mode=self.mode_var.get())
         self.root.wait_window(dialog)
         if dialog.result is not None:
             self.settings = dialog.result
@@ -314,8 +341,24 @@ class OrbitalApp:
         ax1 = self.figure.add_subplot(121)
         ax2 = self.figure.add_subplot(122)
         title = f"Spherical Harmonic l={l}, m={m}"
-        self._draw_signed_field(ax1, phi_grid / np.pi, theta_grid / np.pi, np.real(ylm), cmap, scale)
-        self._draw_signed_field(ax2, phi_grid / np.pi, theta_grid / np.pi, np.imag(ylm), cmap, scale)
+        self._draw_signed_field(
+            ax1,
+            phi_grid / np.pi,
+            theta_grid / np.pi,
+            np.real(ylm),
+            cmap,
+            scale,
+            self.settings.line_mode,
+        )
+        self._draw_signed_field(
+            ax2,
+            phi_grid / np.pi,
+            theta_grid / np.pi,
+            np.imag(ylm),
+            cmap,
+            scale,
+            self.settings.line_mode,
+        )
         ax1.set_title(f"{title}\nRe(Y)")
         ax2.set_title(f"{title}\nIm(Y)")
         for ax in (ax1, ax2):
@@ -335,8 +378,9 @@ class OrbitalApp:
         value: float,
     ) -> None:
         """Draw planar slice plots for wavefunction-based modes."""
+        line_mode = self.settings.line_mode
         if mode == "density" and scale == "symlog":
-            raise ValueError("Symlog is for signed fields. Use linear/log for density.")
+            scale = "linear"
         if mode in {"real", "imag", "real_imag"} and scale == "log":
             raise ValueError("Log scale cannot represent signed fields. Use linear/symlog.")
 
@@ -361,8 +405,8 @@ class OrbitalApp:
             real_part, imag_part = data
             ax1 = self.figure.add_subplot(121)
             ax2 = self.figure.add_subplot(122)
-            self._draw_signed_field(ax1, grid.u, grid.v, real_part, cmap, scale)
-            self._draw_signed_field(ax2, grid.u, grid.v, imag_part, cmap, scale)
+            self._draw_signed_field(ax1, grid.u, grid.v, real_part, cmap, scale, line_mode)
+            self._draw_signed_field(ax2, grid.u, grid.v, imag_part, cmap, scale, line_mode)
             ax1.set_title(f"{title}\nReal Part")
             ax2.set_title(f"{title}\nImaginary Part")
             for ax in (ax1, ax2):
@@ -371,47 +415,89 @@ class OrbitalApp:
                 ax.set_aspect("equal")
         elif mode == "density":
             ax = self.figure.add_subplot(111)
-            self._draw_density_field(ax, grid.u, grid.v, np.asarray(data), cmap, scale)
+            self._draw_density_field(ax, grid.u, grid.v, np.asarray(data), cmap, scale, line_mode)
             ax.set_title(title)
             ax.set_xlabel(grid.u_label)
             ax.set_ylabel(grid.v_label)
             ax.set_aspect("equal")
         else:
             ax = self.figure.add_subplot(111)
-            self._draw_signed_field(ax, grid.u, grid.v, np.asarray(data), cmap, scale)
+            self._draw_signed_field(ax, grid.u, grid.v, np.asarray(data), cmap, scale, line_mode)
             ax.set_title(title)
             ax.set_xlabel(grid.u_label)
             ax.set_ylabel(grid.v_label)
             ax.set_aspect("equal")
 
-    def _draw_density_field(self, ax: Any, x: np.ndarray, y: np.ndarray, data: np.ndarray, cmap: str, scale: str) -> None:
+    def _draw_density_field(
+        self,
+        ax: Any,
+        x: np.ndarray,
+        y: np.ndarray,
+        data: np.ndarray,
+        cmap: str,
+        scale: str,
+        line_mode: bool,
+    ) -> None:
         """Draw non-negative scalar field with linear or log scaling."""
-        if scale == "log":
+        if line_mode:
+            vmax = float(np.nanmax(data)) if data.size else 1.0
+            den_cmap = cm.get_cmap(cmap)
+            den_norm = Normalize(vmin=0.0, vmax=vmax if vmax > 0.0 else 1.0)
+            levels = np.linspace(0.12 * vmax, vmax, 8)
+            for level in levels:
+                color = den_cmap(den_norm(level))
+                ax.contour(x, y, data, levels=[level], colors=[color], linewidths=1.2, linestyles="solid")
+            filled = None
+        elif scale == "log":
+            density_cmap = resolve_density_cmap(cmap)
             positive = data[data > 0.0]
             vmax = float(np.nanmax(data)) if data.size else 1.0
             if positive.size == 0 or vmax <= 0.0:
-                filled = ax.contourf(x, y, data, levels=21, cmap=cmap)
-                vmin_for_ticks = float(np.nanmin(data)) if data.size else 0.0
-                vmax_for_ticks = float(np.nanmax(data)) if data.size else 1.0
+                filled = ax.contourf(x, y, data, levels=21, cmap=density_cmap)
             else:
                 vmin = max(float(np.nanmin(positive)), vmax * 1e-7)
                 levels = np.geomspace(vmin, vmax, 21)
-                filled = ax.contourf(x, y, data, levels=levels, cmap=cmap, norm=LogNorm(vmin=vmin, vmax=vmax))
-                vmin_for_ticks, vmax_for_ticks = vmin, vmax
+                filled = ax.contourf(x, y, data, levels=levels, cmap=density_cmap, norm=LogNorm(vmin=vmin, vmax=vmax))
         else:
-            filled = ax.contourf(x, y, data, levels=21, cmap=cmap)
-            vmin_for_ticks = float(np.nanmin(data)) if data.size else 0.0
-            vmax_for_ticks = float(np.nanmax(data)) if data.size else 1.0
+            density_cmap = resolve_density_cmap(cmap)
+            vmax = float(np.nanmax(data)) if data.size else 1.0
+            levels = np.linspace(0.0, vmax if vmax > 0.0 else 1.0, 21)
+            filled = ax.contourf(x, y, data, levels=levels, cmap=density_cmap)
         ax.grid(alpha=0.18)
         if self.show_colorbar_var.get():
-            self.figure.colorbar(filled, ax=ax)
+            if line_mode:
+                vmax = float(np.nanmax(data)) if data.size else 1.0
+                den_cmap = cm.get_cmap(cmap)
+                den_norm = Normalize(vmin=0.0, vmax=vmax if vmax > 0.0 else 1.0)
+                self.figure.colorbar(cm.ScalarMappable(norm=den_norm, cmap=den_cmap), ax=ax)
+            elif filled is not None:
+                self.figure.colorbar(filled, ax=ax)
 
-    def _draw_signed_field(self, ax: Any, x: np.ndarray, y: np.ndarray, data: np.ndarray, cmap: str, scale: str) -> None:
+    def _draw_signed_field(
+        self,
+        ax: Any,
+        x: np.ndarray,
+        y: np.ndarray,
+        data: np.ndarray,
+        cmap: str,
+        scale: str,
+        line_mode: bool,
+    ) -> None:
         """Draw signed scalar field with linear or symlog scaling and zero contour."""
         vlim = float(np.nanmax(np.abs(data)))
         vlim = vlim if vlim > 0.0 else 1.0
 
-        if scale == "symlog":
+        if line_mode:
+            levels = np.linspace(0.12 * vlim, vlim, 8)
+            base_cmap = cm.get_cmap(cmap)
+            norm = TwoSlopeNorm(vmin=-vlim, vcenter=0.0, vmax=vlim)
+            for level in levels:
+                pos_color = base_cmap(norm(level))
+                neg_color = base_cmap(norm(-level))
+                ax.contour(x, y, data, levels=[level], colors=[pos_color], linewidths=1.2, linestyles="solid")
+                ax.contour(x, y, data, levels=[-level], colors=[neg_color], linewidths=1.2, linestyles="dashed")
+            filled = None
+        elif scale == "symlog":
             linthresh = max(vlim * 1e-3, 1e-16)
             neg = -np.geomspace(linthresh, vlim, 10)[::-1]
             pos = np.geomspace(linthresh, vlim, 10)
@@ -422,10 +508,17 @@ class OrbitalApp:
             levels = np.linspace(-vlim, vlim, 21)
             filled = ax.contourf(x, y, data, levels=levels, cmap=cmap)
 
-        ax.contour(x, y, data, levels=[0.0], colors="gray", linewidths=0.9)
+        if self.settings.show_nodal:
+            ax.contour(x, y, data, levels=[0.0], colors="#a8a8a8", linewidths=0.9)
         ax.grid(alpha=0.18)
         if self.show_colorbar_var.get():
-            self.figure.colorbar(filled, ax=ax)
+            if line_mode:
+                self.figure.colorbar(
+                    cm.ScalarMappable(norm=TwoSlopeNorm(vmin=-vlim, vcenter=0.0, vmax=vlim), cmap=cm.get_cmap(cmap)),
+                    ax=ax,
+                )
+            elif filled is not None:
+                self.figure.colorbar(filled, ax=ax)
 
 
 def main() -> None:

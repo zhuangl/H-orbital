@@ -9,7 +9,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="h-orbital",
-    version="1.0.0",
+    version="1.5.0",
     description="Analytic hydrogen orbital slice visualizer",
     packages=find_packages(include=["h_orbital", "h_orbital.*"]),
     python_requires=">=3.10",

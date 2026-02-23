@@ -91,7 +91,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--cmap",
         default=None,
-        help="Matplotlib colormap or presets: sample, sample_density.",
+        help="Matplotlib colormap name (default: RdYlBu_r).",
     )
     parser.add_argument(
         "--scale",
@@ -104,6 +104,12 @@ def _build_parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=False,
         help="Show colorbar (default: off; use --colorbar to enable).",
+    )
+    parser.add_argument(
+        "--line-mode",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Draw contour-only lines instead of filled surfaces.",
     )
     parser.add_argument(
         "--output",
@@ -213,6 +219,7 @@ def main() -> None:
             title=" | ".join(title_parts),
             cmap=cmap,
             scale=scale,
+            line_mode=args.line_mode,
             show_colorbar=args.colorbar,
             output_path=output_path,
             show=args.show,
@@ -282,7 +289,9 @@ def main() -> None:
             y_label=grid.v_label,
             cmap=cmap,
             scale=scale,
+            line_mode=args.line_mode,
             show_colorbar=args.colorbar,
+            show_nodal=True,
             output_path=output_path,
             show=args.show,
         )
@@ -290,16 +299,18 @@ def main() -> None:
         plot_single_panel(
             u=grid.u,
             v=grid.v,
-            data=data,
+            data=np.asarray(data),
             mode=args.mode,
             title=title,
             x_label=grid.u_label,
             y_label=grid.v_label,
             cmap=cmap,
             scale=scale,
+            line_mode=args.line_mode,
             show_colorbar=args.colorbar,
             output_path=output_path,
             show=args.show,
+            show_nodal=True,
         )
 
     print(f"Saved plot to: {output_path}")
