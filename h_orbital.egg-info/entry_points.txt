@@ -1,3 +1,0 @@
-[console_scripts]
-H-orbital = h_orbital.cli:main
-H-orbital-ui = h_orbital.gui:main
