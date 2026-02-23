@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.5.1] - 2026-02-23
+
+- Switched GUI export to a single unified `Export` button.
+- Added PDF as export option and set PDF as default export type.
+- Kept SVG/PNG/PDF exports with transparent background and tight bounding box.
+
 ## [1.5.0] - 2026-02-23
 
 - Refined GUI layout spacing and sizing for a tighter top control panel.

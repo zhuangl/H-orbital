@@ -229,8 +229,7 @@ class OrbitalApp:
 
         export_row = ttk.Frame(top)
         export_row.grid(row=1, column=7, columnspan=2, padx=4, pady=2, sticky="w")
-        ttk.Button(export_row, text="Export PNG", command=lambda: self._export("png")).grid(row=0, column=0, padx=(0, 4))
-        ttk.Button(export_row, text="Export SVG", command=lambda: self._export("svg")).grid(row=0, column=1, padx=(0, 0))
+        ttk.Button(export_row, text="Export", command=self._export).grid(row=0, column=0, padx=(0, 0))
 
         mid = ttk.Frame(self.root, padding=(10, 0, 10, 0))
         mid.grid(row=1, column=0, sticky="nsew")
@@ -269,17 +268,35 @@ class OrbitalApp:
             self.settings = dialog.result
             self._plot_current()
 
-    def _export(self, fmt: str) -> None:
-        """Export current figure as PNG or SVG."""
-        suffix = f".{fmt}"
+    def _export(self) -> None:
+        """Export current figure as PNG, SVG, or PDF."""
+        filetypes = [
+            ("PDF", "*.pdf"),
+            ("PNG", "*.png"),
+            ("SVG", "*.svg"),
+        ]
         path = filedialog.asksaveasfilename(
-            title=f"Export as {fmt.upper()}",
-            defaultextension=suffix,
-            filetypes=[(fmt.upper(), f"*{suffix}")],
+            title="Export Figure",
+            defaultextension=".pdf",
+            filetypes=filetypes,
         )
         if not path:
             return
-        self.figure.savefig(path)
+
+        suffix = path.lower().rsplit(".", 1)
+        if len(suffix) == 2 and suffix[1] in {"png", "pdf", "svg"}:
+            fmt = suffix[1]
+        else:
+            path = f"{path}.pdf"
+            fmt = "pdf"
+
+        self.figure.savefig(
+            path,
+            format=fmt,
+            transparent=True,
+            bbox_inches="tight",
+            pad_inches=0.02,
+        )
         messagebox.showinfo("Export complete", f"Saved figure to:\n{path}")
 
     def _plot_current(self, show_errors: bool = True) -> None:

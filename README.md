@@ -77,7 +77,7 @@ GUI layout:
   - in `density` mode, `symlog` is disabled
 - Middle area: interactive Matplotlib plot canvas
 - Bottom slider: range control in units of `a0`
-- Export buttons: save current figure as PNG or SVG
+- Export button: choose PNG, SVG, or PDF in one save dialog (default PDF)
 
 If you run without arguments, the command prints full help:
 
@@ -150,7 +150,7 @@ pytest tests/test_quantum_numbers.py::test_parse_single_value_defaults_l_and_m
 
 ## Version
 
-Current stable version: `1.5.0`.
+Current stable version: `1.5.1`.
 
 ## License
 
